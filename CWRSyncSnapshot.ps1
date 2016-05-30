@@ -201,7 +201,7 @@ if ($LOG_FILE)
   $RSYNC_COMMAND += "`"--log-file=/cygdrive/$($LOG_FILE.Replace(':', '').Replace('\', '/'))`" "
 }
 $RSYNC_COMMAND += "`"/cygdrive/$($SOURCE.Replace(':', '').Replace('\', '/'))`" "
-$RSYNC_COMMAND += "`"/cygdrive/$($(Join-Path $TARGET "/Snapshot.0").Replace(':', '').Replace('\', '/'))`""
+$RSYNC_COMMAND += "`"/cygdrive/$($(Join-Path $TARGET "\Snapshot.0").Replace(':', '').Replace('\', '/'))`""
 
 # Do the actual backup using rsync
 Write-Host "Backing up `"$SOURCE`" to snapshot number 0 using the following command:"
