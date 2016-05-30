@@ -18,7 +18,7 @@
 # RSnapshot type script
 # ------------------------------
 # Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep
-#           Optional_Log_File
+#           Optional_Log_File Custom_Lock_File
 
 # ----- Modifiable RSync Options -----
 
@@ -49,78 +49,86 @@ $SOURCE = $args[0]
 $TARGET = $args[1]
 $SNAPSHOT_COUNT = $args[2]
 $LOG_FILE = $args[3]
-$LOCK_FILE = 'C:\.RSyncSnapshotLock'
-$RSYNC_LOG_FILE = "--log-file=$LOG_FILE"
+$LOCK_FILE = $args[4]
+if (!($LOCK_FILE))
+{
+   $LOCK_FILE = "C:\CWRSyncSnapshopLock"
+}
+$RSYNC_SOURCE = $null
+$RSYNC_TARGET = $null
+$RSYNC_LOG_FILE = $null
 $RSYNC_LINK_TARGET = $null
+$SNAPSHOT = $null
 
 # ----- Script -----
-# Make things a bit more readable when we start echoing stuff
-Write-Host ''
+
+# Make things a bit more readable when we start writing stuff
+Write-Host ""
 
 # Make sure passed variables make sense
 if (!($SOURCE))
 {
-   Write-Host 'Usage: CWRSyncSnapshot Source_Directory Target_Directory'
-   Write-Host '   Number_of_Snapshots_to_Keep Optional_Log_File'
-   Write-Host ''
-   Write-Host 'No source directory specified.'
-   Write-Host ''
+   Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory"
+   Write-Host "   Number_of_Snapshots_to_Keep Optional_Log_File Custom_Lock_File"
+   Write-Host ""
+   Write-Host "No source directory specified."
+   Write-Host ""
    Exit 1
 }
 if (!(Test-Path $SOURCE -pathType Container))
 {
-   Write-Host "Specified source directory (\"$SOURCE\") doesn't exist."
-   Write-Host ''
+   Write-Host "Specified source directory (`"$SOURCE`") doesn't exist."
+   Write-Host ""
    Exit 1
 }
 
 if (!($TARGET))
 {
-   Write-Host 'Usage: RSyncSnapshot Source_Directory Target_Directory'
-   Write-Host '   Number_of_Snapshots_to_Keep Optional_Log_File'
-   Write-Host ''
-   Write-Host 'No target directory specified.'
-   Write-Host ''
+   Write-Host "Usage: RSyncSnapshot Source_Directory Target_Directory"
+   Write-Host "   Number_of_Snapshots_to_Keep Optional_Log_File Custom_Lock_File"
+   Write-Host ""
+   Write-Host "No target directory specified."
+   Write-Host ""
    Exit 1
 }
 if (!(Test-Path $TARGET -pathType Container))
 {
-   Write-Host "Specified target directory (\"$TARGET\") doesn't exist."
-   Write-Host ''
+   Write-Host "Specified target directory (`"$TARGET`") doesn't exist."
+   Write-Host ""
    Exit 1
 }
 
 if (!($SNAPSHOT_COUNT))
 {
-   Write-Host 'Usage: RSyncSnapshot Source_Directory Target_Directory'
-   Write-Host '   Number_of_Snapshots_to_Keep Optional_Log_File'
-   Write-Host ''
-   Write-Host 'Number of snapshots to keep not specified.'
-   Write-Host ''
+   Write-Host "Usage: RSyncSnapshot Source_Directory Target_Directory"
+   Write-Host "   Number_of_Snapshots_to_Keep Optional_Log_File Custom_Lock_File"
+   Write-Host ""
+   Write-Host "Number of snapshots to keep not specified."
+   Write-Host ""
    Exit 1
 }
-if (!($SNAPSHOT_COUNT -match '^\d+$'))
+if (!($SNAPSHOT_COUNT -match "^\d+$"))
 {
-   Write-Host 'Specified number of snapshots to keep has to be a numeric value.'
-   Write-Host ''
+   Write-Host "Specified number of snapshots to keep has to be a numeric value."
+   Write-Host ""
    Exit 1
 }
 if ($SNAPSHOT_COUNT -lt 1)
 {
-   Write-Host 'Specified number of snapshots to keep can not be less than one.'
-   Write-Host ''
+   Write-Host "Specified number of snapshots to keep can not be less than one."
+   Write-Host ""
    Exit 1
 }
 
 # Make sure no other instance of this script is running
 if (Test-Path $LOCK_FILE)
 {
-   Write-Host 'Another instance of the CWRSyncSnapshot script is already running.'
-   Write-Host 'Press Ctrl+C to cancel this script or if no other copy of CWRSyncSnapshot'
-   Write-Host "is actually running delete the \"$LOCK_FILE\" file."
-   Write-Host ''
-   Write-Host -noNewLine 'Waiting for the other instance of RSyncSnapshot to finish ...'
-   Write-Output 'CWRSyncSnapshot: Waiting for another instance of RSyncSnapshot to finish.' `
+   Write-Host "Another instance of the CWRSyncSnapshot script is already running."
+   Write-Host "Press Ctrl+C to cancel this script or if no other copy of CWRSyncSnapshot"
+   Write-Host "is actually running delete the `"$LOCK_FILE`" file."
+   Write-Host ""
+   Write-Host -noNewLine "Waiting for the other instance of CWRSyncSnapshot to finish ..."
+   Write-Output "CWRSyncSnapshot: Waiting for another instance of RSyncSnapshot to finish." `
       >> $LOG_FILE
 
    # Check every 15 seconds if the other instance is done
@@ -132,12 +140,12 @@ if (Test-Path $LOCK_FILE)
    }
 
    # Make things pretty
-   Write-Host ''
-   Write-Host ''
+   Write-Host ""
+   Write-Host ""
 }
 
 # Create lock file
-Write-Output '' >> $LOCK_FILE
+New-Item $LOCK_FILE -type file | Out-Null
 
 # Delete oldest snapshot if it exists
 if (Test-Path "$TARGET\Snapshot.$SNAPSHOT_COUNT")
@@ -161,7 +169,7 @@ while ($SNAPSHOT_COUNT -gt 0)
    $SNAPSHOT_COUNT -= 1
 
    # Check if the snapshot might be a file instead of a directory since
-   #   this happens when rsync failed to run correctly the last time
+   #    this happens when rsync failed to run correctly the last time
    if (Test-Path "$TARGET\Snapshot.$SNAPSHOT_COUNT" -pathType Leaf)
    {
       Write-Host "Removing invalid snapshot (number $SNAPSHOT_COUNT) ..."
@@ -189,33 +197,42 @@ while ($SNAPSHOT_COUNT -gt 0)
    }
 }
 
-# See if the directory we wanna link to exists already
+# Create the rsync command
+$RSYNC_COMMAND = "$RSYNC $RSYNC_OPTIONS "
 if (Test-Path "$TARGET\Snapshot.1" -pathType Container)
 {
-   $RSYNC_LINK_TARGET='--link-dest=..\Snapshot.1'
+   $RSYNC_COMMAND += "`"--link-dest=../Snapshot.1`" "
 }
+if ($LOG_FILE)
+{
+   $RSYNC_COMMAND += "`"--log-file=/cygdrive/$($ExecutionContext.SessionState.Path. `
+      GetUnresolvedProviderPathFromPSPath($LOG_FILE).Replace(':', '').Replace('\', '/'))`" "
+}
+$RSYNC_COMMAND += "`"/cygdrive/$($ExecutionContext.SessionState.Path. `
+   GetUnresolvedProviderPathFromPSPath($SOURCE).Replace(':', '').Replace('\', '/'))`" "
+$RSYNC_COMMAND += "`"/cygdrive/$($ExecutionContext.SessionState.Path. `
+   GetUnresolvedProviderPathFromPSPath($TARGET).Replace(':', '').Replace('\', '/'))/Snapshot.0`""
 
 # Do the actual backup using rsync
-Write-Host "Backing up \"$SOURCE\" to snapshot number 0 using the command below ..."
-Write-Host "$RSYNC $RSYNC_OPTIONS $RSYNC_LINK_TARGET \\"
-Write-Host "\"$RSYNC_LOG_FILE\" \"$SOURCE\" \"$TARGET\Snapshot.0\""
-Write-Host ''
-Write-Output "RSyncSnapshot: Backing up \"$SOURCE\" to snapshot number 0 using the command below:" `
-   >> $LOG_FILE
-Write-Output "RSyncSnapshot: $RSYNC $RSYNC_OPTIONS $RSYNC_LINK_TARGET \\" `
-   >> $LOG_FILE
-Write-Output "RSyncSnapshot: \"$RSYNC_LOG_FILE\" \"$SOURCE\" \"$TARGET\Snapshot.0\"" `
-   >> $LOG_FILE
-Invoke-Expression "$RSYNC $RSYNC_OPTIONS $RSYNC_LINK_TARGET $RSYNC_LOG_FILE $SOURCE $TARGET\Snapshot.0"
+Write-Host "Backing up `"$SOURCE`" to snapshot number 0 using the command below ..."
+Write-Host $RSYNC_COMMAND
+Write-Host ""
+Write-Output "CWRSyncSnapshot: Backing up `"$SOURCE`" to snapshot number 0 using the command `
+   below:" >> $LOG_FILE
+Write-Output "CWRSyncSnapshot: $RSYNC_COMMAND" >> $LOG_FILE
+Invoke-Expression ($RSYNC_COMMAND)
 
-# Update the time of the snapshot directory
-(Get-Item "$TARGET\Snapshot.0").LastWriteTime = Get-Date
+# Update the time of the snapshot directory (this command needs to be split between two lines to
+#    avoid access denied errors)
+#$SNAPSHOT = Get-Item "$TARGET\Snapshot.0"
+#Start-Sleep 5
+#$SNAPSHOT.LastWriteTime = Get-Date
 
-# remove lock file
+# Remove lock file
 Remove-Item $LOCK_FILE -force
 
-# make things pretty
-Write-Host ''
+# Make things pretty
+Write-Host ""
 
-# all done
+# All done
 Exit 0
