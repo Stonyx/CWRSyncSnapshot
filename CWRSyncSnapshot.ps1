@@ -170,7 +170,8 @@ if (Test-Path $LOCK_FILE)
   Write-Host "if no other copy of CWRSyncSnapshot is actually running delete the `"$LOCK_FILE`" file."
   Write-Host ""
   Write-Host -noNewLine "Waiting for the other instance of CWRSyncSnapshot to finish ..."
-  Write-Output "CWRSyncSnapshot: Waiting for another instance of RSyncSnapshot to finish." >> $LOG_FILE
+  Write-Output "CWRSyncSnapshot: Waiting for another instance of RSyncSnapshot to finish." | `
+    Out-File $LOG_FILE UTF8 -append
 
   # Check every 15 seconds if the other instance is done
   Start-Sleep 15
@@ -192,13 +193,15 @@ $LOCK_FILE = New-Item $LOCK_FILE -itemType file
 if (Test-Path $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT"))
 {
   Write-Host "Deleting oldest snapshot (number $SNAPSHOT_COUNT) ..."
-  Write-Output "CWRSyncSnapshot: Deleting oldest snapshot (number $SNAPSHOT_COUNT)." >> $LOG_FILE
+  Write-Output "CWRSyncSnapshot: Deleting oldest snapshot (number $SNAPSHOT_COUNT)." | `
+    Out-File $LOG_FILE UTF8 -append
   Remove-Item $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") -recurse -force
 }
 else
 {
   Write-Host "Oldest snapshot (number $SNAPSHOT_COUNT) doesn't exist."
-  Write-Output "CWRSyncSnapshot: Oldest snapshot (number $SNAPSHOT_COUNT) doesn't exist." >> $LOG_FILE
+  Write-Output "CWRSyncSnapshot: Oldest snapshot (number $SNAPSHOT_COUNT) doesn't exist." | `
+    Out-File $LOG_FILE UTF8 -append
 }
 
 # Make each snapshot one snapshot older
@@ -211,14 +214,16 @@ while ($SNAPSHOT_COUNT -gt 0)
   if (Test-Path $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT"))
   {
     Write-Host "Moving snapshot number $SNAPSHOT_COUNT to $($SNAPSHOT_COUNT + 1) ..."
-    Write-Output "CWRSyncSnapshot: Moving snapshot number $SNAPSHOT_COUNT to $($SNAPSHOT_COUNT + 1)." >> $LOG_FILE
+    Write-Output "CWRSyncSnapshot: Moving snapshot number $SNAPSHOT_COUNT to $($SNAPSHOT_COUNT + 1)." | `
+      Out-File $LOG_FILE UTF8 -append
     Move-Item $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") $(Join-Path $TARGET "\Snapshot.$($SNAPSHOT_COUNT + 1)") `
       -force
   }
   else
   {
     Write-Host "Snapshot number $SNAPSHOT_COUNT doesn't exist."
-    Write-Output "CWRSyncSnapshot: Snapshot number $SNAPSHOT_COUNT doesn't exist." >> $LOG_FILE
+    Write-Output "CWRSyncSnapshot: Snapshot number $SNAPSHOT_COUNT doesn't exist." | `
+      Out-File $LOG_FILE UTF8 -append
   }
 }
 
@@ -242,9 +247,9 @@ $RSYNC_COMMAND += "`"/cygdrive/$($(Join-Path $TARGET "\Snapshot.0").Replace(':',
 Write-Host "Backing up `"$SOURCE`" to snapshot number 0 using the following command:"
 Write-Host $RSYNC_COMMAND
 Write-Host ""
-Write-Output "CWRSyncSnapshot: Backing up `"$SOURCE`" to snapshot number 0 using the following command:" `
-  >> $LOG_FILE
-Write-Output "CWRSyncSnapshot: $RSYNC_COMMAND" >> $LOG_FILE
+Write-Output "CWRSyncSnapshot: Backing up `"$SOURCE`" to snapshot number 0 using the following command:" | `
+  Out-File $LOG_FILE UTF8 -append
+Write-Output "CWRSyncSnapshot: $RSYNC_COMMAND" | Out-File $LOG_FILE UTF8 -append
 Invoke-Expression ($RSYNC_COMMAND)
 
 # Update the write time of the snapshot directory
@@ -255,6 +260,7 @@ Remove-Item $LOCK_FILE -force
 
 # Make things pretty
 Write-Host ""
+Write-Output "" | Out-File $LOG_FILE UTF8 -append
 
 # All done
 Exit 0
