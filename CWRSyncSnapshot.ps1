@@ -18,11 +18,11 @@
 # Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File
 #          Custom_Lock_File
 
-# ----- RSync Command -----
+# ----- CWRSync Command -----
 
-$RSYNC = '.\bin\rsync.exe'
+$CWRSYNC = '.\bin\rsync.exe'
 
-# ----- RSync Options -----
+# ----- CWRSync Options -----
 
 # Explanation of the default options:
 # a = archive mode which equals rlptgoD
@@ -38,7 +38,7 @@ $RSYNC = '.\bin\rsync.exe'
 # x = don't cross filesystem boundaries
 # H = preserve hard links
 # S = handle sparse files efficiently
-$RSYNC_OPTIONS = "-acvxHS"
+$CWRSYNC_OPTIONS = "-acvxHS"
 
 # ----- Script -----
 
@@ -75,7 +75,7 @@ if (!(Test-Path $SOURCE -pathType Container))
 # Process the target argument
 if (!($args[1]))
 {
-  Write-Host "Usage: RSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
+  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
   Write-Host "         Custom_Lock_File"
   Write-Host ""
   Write-Host "Target directory not specified."
@@ -102,7 +102,7 @@ if (!(Test-Path $TARGET -pathType Container))
 # Process the snapshot count argument
 if (!($args[2]))
 {
-  Write-Host "Usage: RSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
+  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
   Write-Host "         Custom_Lock_File"
   Write-Host ""
   Write-Host "Number of snapshots to keep not specified."
@@ -151,14 +151,14 @@ else
   }
 }
 
-# Process the RSync command
+# Process the CWRSync command
 try
 {
-  $RSYNC = Resolve-Path $RSYNC
+  $CWRSYNC = Resolve-Path $CWRSYNC
 }
 catch
 {
-  Write-Host "Unable to find the RSync executable."
+  Write-Host "Unable to find the CWRSync executable."
   Write-Host ""
   Exit 1
 }
@@ -170,7 +170,7 @@ if (Test-Path $LOCK_FILE)
   Write-Host "if no other copy of CWRSyncSnapshot is actually running delete the `"$LOCK_FILE`" file."
   Write-Host ""
   Write-Host -noNewLine "Waiting for the other instance of CWRSyncSnapshot to finish ..."
-  Write-Output "CWRSyncSnapshot: Waiting for another instance of RSyncSnapshot to finish." | `
+  Write-Output "CWRSyncSnapshot: Waiting for another instance of CWRSyncSnapshot to finish." | `
     Out-File $LOG_FILE UTF8 -append
 
   # Check every 15 seconds if the other instance is done
@@ -230,32 +230,33 @@ while ($SNAPSHOT_COUNT -gt 0)
 # Create the snapshot directory
 $SNAPSHOT = New-Item $(Join-Path $TARGET "\Snapshot.0") -itemType directory
 
-# Create the rsync command
-$RSYNC_COMMAND = "$RSYNC $RSYNC_OPTIONS "
+# Create the CWRSync command
+$CWRSYNC_COMMAND = "$CWRSYNC $CWRSYNC_OPTIONS "
 if (Test-Path $(Join-Path $TARGET "\Snapshot.1"))
 {
-  $RSYNC_COMMAND += "`"--link-dest=../Snapshot.1`" "
+  $CWRSYNC_COMMAND += "`"--link-dest=../Snapshot.1`" "
 }
 if ($LOG_FILE)
 {
-  $RSYNC_COMMAND += "`"--log-file=/cygdrive/$($LOG_FILE.Replace(':', '').Replace('\', '/'))`" "
+  $CWRSYNC_COMMAND += "`"--log-file=/cygdrive/$($LOG_FILE.Replace(':', '').Replace('\', '/'))`" "
 }
-$RSYNC_COMMAND += "`"/cygdrive/$($SOURCE.Replace(':', '').Replace('\', '/'))`" "
-$RSYNC_COMMAND += "`"/cygdrive/$($(Join-Path $TARGET "\Snapshot.0").Replace(':', '').Replace('\', '/'))`""
+$CWRSYNC_COMMAND += "`"/cygdrive/$($SOURCE.Replace(':', '').Replace('\', '/'))`" "
+$CWRSYNC_COMMAND += "`"/cygdrive/$($(Join-Path $TARGET "\Snapshot.0").Replace(':', '').Replace('\', '/'))`""
 
-# Do the actual backup using rsync
+# Do the actual backup using CWRSync
 Write-Host "Backing up `"$SOURCE`" to snapshot number 0 using the following command:"
-Write-Host $RSYNC_COMMAND
+Write-Host $CWRSYNC_COMMAND
 Write-Host ""
 Write-Output "CWRSyncSnapshot: Backing up `"$SOURCE`" to snapshot number 0 using the following command:" | `
   Out-File $LOG_FILE UTF8 -append
-Write-Output "CWRSyncSnapshot: $RSYNC_COMMAND" | Out-File $LOG_FILE UTF8 -append
-Invoke-Expression ($RSYNC_COMMAND)
+Write-Output "CWRSyncSnapshot: $CWRSYNC_COMMAND" | Out-File $LOG_FILE UTF8 -append
+Write-Output "" | Out-File $LOG_FILE UTF8 -append
+Invoke-Expression ($CWRSYNC_COMMAND)
 
 # Update the write time of the snapshot directory
 $SNAPSHOT.lastWriteTime = Get-Date
 
-# Remove lock file
+# Remove the lock file
 Remove-Item $LOCK_FILE -force
 
 # Make things pretty
