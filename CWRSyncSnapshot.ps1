@@ -13,14 +13,14 @@
 # MA 02139, USA.
 
 # ------------------------------
-# RSnapshot type script
+# RSnapshot Type Script
 # ------------------------------
 # Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File 
 #          Custom_Lock_File
 
 # ----- RSync Command -----
 
-$RSYNC = "$(Resolve-Path '.\bin\rsync.exe')"
+$RSYNC = '.\bin\rsync.exe'
 
 # ----- RSync Options -----
 
@@ -42,39 +42,26 @@ $RSYNC_OPTIONS = "-acvxHS"
 
 # ----- Script -----
 
-# Initialize needed variables
-if ($args[0])
-{
-  $SOURCE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[0])
-}
-if ($args[1])
-{
-  $TARGET = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[1])
-}
-$SNAPSHOT_COUNT = $args[2]
-if ($args[3])
-{
-  LOG_FILE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[3])
-}
-if ($args[4])
-{
-  LOCK_FILE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[4])
-}
-else
-{
-  $LOCK_FILE = "C:\CWRSyncSnapshopLock"
-}
-
 # Make things pretty
 Write-Host ""
 
-# Make sure the passed in arguments make sense
-if (!($SOURCE))
+# Process the source argument
+if (!($args[0]))
 {
   Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
   Write-Host "         Custom_Lock_File"
   Write-Host ""
-  Write-Host "No source directory specified."
+  Write-Host "Source directory not specified."
+  Write-Host ""
+  Exit 1
+}
+try
+{
+  $SOURCE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[0])
+}
+catch
+{
+  Write-Host "Specified source directory (`"$args[0]`") is not valid."
   Write-Host ""
   Exit 1
 }
@@ -84,12 +71,24 @@ if (!(Test-Path $SOURCE -pathType Container))
   Write-Host ""
   Exit 1
 }
-if (!($TARGET))
+
+# Process the target argument
+if (!($args[1]))
 {
   Write-Host "Usage: RSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
   Write-Host "         Custom_Lock_File"
   Write-Host ""
-  Write-Host "No target directory specified."
+  Write-Host "Target directory not specified."
+  Write-Host ""
+  Exit 1
+}
+try
+{
+  $TARGET = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[1])
+}
+catch
+{
+  Write-Host "Specified target directory (`"$args[1]`") is not valid."
   Write-Host ""
   Exit 1
 }
@@ -99,7 +98,9 @@ if (!(Test-Path $TARGET -pathType Container))
   Write-Host ""
   Exit 1
 }
-if (!($SNAPSHOT_COUNT))
+
+# Process the snapshot count argument
+if (!($args[2]))
 {
   Write-Host "Usage: RSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
   Write-Host "         Custom_Lock_File"
@@ -108,20 +109,59 @@ if (!($SNAPSHOT_COUNT))
   Write-Host ""
   Exit 1
 }
+$SNAPSHOT_COUNT = $args[2]
 if (!($SNAPSHOT_COUNT -match "^\d+$"))
 {
   Write-Host "Specified number of snapshots to keep has to be a numeric value."
   Write-Host ""
   Exit 1
 }
-if ($SNAPSHOT_COUNT -lt 1)
+
+# Process the log file argument
+if ($args[3])
 {
-  Write-Host "Specified number of snapshots to keep can not be less than one."
+  try
+  {
+    $LOG_FILE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[3])
+  }
+  catch
+  {
+    Write-Host "Specified log file (`"$args[3]`") is not valid."
+    Write-Host ""
+    Exit 1
+  }  
+}
+
+# Process the lock file argument
+if (!$args[4])
+{
+  $LOCK_FILE = "C:\CWRSyncSnapshopLock"  
+}
+else
+{
+  try
+  {
+    $LOCK_FILE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[4])
+  }
+  catch
+  {
+    Write-Host "Specfieid lock file (`"$args[4]`") is not valid."
+    Write-Host ""
+    Exit 1
+  }  
+}
+
+# Process the RSync command
+try
+{
+  $RSYNC = Resolve-Path $RSYNC
+}
+catch
+{
+  Write-Host "Unable to find the RSync executable."
   Write-Host ""
   Exit 1
 }
-
-# Get the 
 
 # Make sure no other instance of this script is running
 if (Test-Path $LOCK_FILE -pathType Leaf)
@@ -146,13 +186,13 @@ if (Test-Path $LOCK_FILE -pathType Leaf)
 }
 
 # Create the lock file
-New-Item $LOCK_FILE -type file | Out-Null
+New-Item $LOCK_FILE -itemType file | Out-Null
 
 # Delete the oldest snapshot if it exists
 if (Test-Path $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT"))
 {
-  Write-Host "Removing oldest snapshot (number $SNAPSHOT_COUNT) ..."
-  Write-Output "CWRSyncSnapshot: Removing oldest snapshot (number $SNAPSHOT_COUNT)." >> $LOG_FILE
+  Write-Host "Deleting oldest snapshot (number $SNAPSHOT_COUNT) ..."
+  Write-Output "CWRSyncSnapshot: Deleting oldest snapshot (number $SNAPSHOT_COUNT)." >> $LOG_FILE
   Remove-Item $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") -recurse -force
 }
 else
@@ -167,28 +207,22 @@ while ($SNAPSHOT_COUNT -gt 0)
   # Reduce SNAPSHOP_COUNT by 1 (since we've already dealt with one snapshot above)
   $SNAPSHOT_COUNT -= 1
 
-  # Check if the snapshot might be a file instead of a directory since this happens if rsync failed to 
-  #   run correctly the last time ...
-  if (Test-Path $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") -pathType Leaf)
-  {
-    Write-Host "Removing invalid snapshot (number $SNAPSHOT_COUNT) ..."
-    Write-Output "CWRSyncSnapshot: Removing invalid snapshot (number $SNAPSHOT_COUNT)." >> $LOG_FILE
-    Remove-Item $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") -force
-  }
-  # ... or if it's a directory ...
-  elseif (Test-Path $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") -pathType Container)
+  # Check if the snapshot exists
+  if (Test-Path $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") -pathType Container)
   {
     Write-Host "Moving snapshot number $SNAPSHOT_COUNT to $($SNAPSHOT_COUNT + 1) ..."
     Write-Output "CWRSyncSnapshot: Moving snapshot number $SNAPSHOT_COUNT to $($SNAPSHOT_COUNT + 1)." >> $LOG_FILE
     Move-Item $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") $(Join-Path $TARGET "\Snapshot.$($SNAPSHOT_COUNT + 1)")
   }
-  # ... or do the following if it doesn't exist at all
   else
   {
     Write-Host "Snapshot number $SNAPSHOT_COUNT doesn't exist."
     Write-Output "CWRSyncSnapshot: Snapshot number $SNAPSHOT_COUNT doesn't exist." >> $LOG_FILE
   }
 }
+
+# Create the snapshot directory
+$SNAPSHOT = New-Item $(Join-Path $TARGET "\Snapshot.0") -itemType directory
 
 # Create the rsync command
 $RSYNC_COMMAND = "$RSYNC $RSYNC_OPTIONS "
@@ -211,6 +245,9 @@ Write-Output "CWRSyncSnapshot: Backing up `"$SOURCE`" to snapshot number 0 using
   >> $LOG_FILE
 Write-Output "CWRSyncSnapshot: $RSYNC_COMMAND" >> $LOG_FILE
 Invoke-Expression ($RSYNC_COMMAND)
+
+# Update the time of the snapshot directory
+$SNAPSHOT.lastWriteTime = Get-Date
 
 # Remove lock file
 Remove-Item $LOCK_FILE -force
