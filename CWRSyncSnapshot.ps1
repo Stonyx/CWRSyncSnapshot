@@ -9,13 +9,13 @@
 # for more details.
 #
 # If you did not received a copy of the GNU General Public License along with this script see 
-# http://www.gnu.org/copyleft/gpl.html or write to The Free Software Foundation, 675 Mass Ave, Cambridge, 
+# http://www.gnu.org/copyleft/gpl.html or write to The Free Software Foundation, 675 Mass Ave, Cambridge,
 # MA 02139, USA.
 
 # ------------------------------
 # RSnapshot Type Script
 # ------------------------------
-# Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File 
+# Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File
 #          Custom_Lock_File
 
 # ----- RSync Command -----
@@ -129,13 +129,13 @@ if ($args[3])
     Write-Host "Specified log file (`"$args[3]`") is not valid."
     Write-Host ""
     Exit 1
-  }  
+  }
 }
 
 # Process the lock file argument
 if (!$args[4])
 {
-  $LOCK_FILE = "C:\CWRSyncSnapshopLock"  
+  $LOCK_FILE = "C:\CWRSyncSnapshopLock"
 }
 else
 {
@@ -148,7 +148,7 @@ else
     Write-Host "Specfieid lock file (`"$args[4]`") is not valid."
     Write-Host ""
     Exit 1
-  }  
+  }
 }
 
 # Process the RSync command
