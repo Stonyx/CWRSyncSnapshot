@@ -164,7 +164,7 @@ catch
 }
 
 # Make sure no other instance of this script is running
-if (Test-Path $LOCK_FILE -pathType Leaf)
+if (Test-Path $LOCK_FILE)
 {
   Write-Host "Another instance of the CWRSyncSnapshot script is already running.  Press Ctrl+C to cancel this script or"
   Write-Host "if no other copy of CWRSyncSnapshot is actually running delete the `"$LOCK_FILE`" file."
@@ -174,7 +174,7 @@ if (Test-Path $LOCK_FILE -pathType Leaf)
 
   # Check every 15 seconds if the other instance is done
   Start-Sleep 15
-  while (Test-Path $LOCK_FILE -pathType Leaf)
+  while (Test-Path $LOCK_FILE)
   {
     Write-Host -noNewLine "."
     Start-Sleep 15
@@ -186,7 +186,7 @@ if (Test-Path $LOCK_FILE -pathType Leaf)
 }
 
 # Create the lock file
-New-Item $LOCK_FILE -itemType file | Out-Null
+$LOCK_FILE = New-Item $LOCK_FILE -itemType file
 
 # Delete the oldest snapshot if it exists
 if (Test-Path $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT"))
@@ -208,11 +208,12 @@ while ($SNAPSHOT_COUNT -gt 0)
   $SNAPSHOT_COUNT -= 1
 
   # Check if the snapshot exists
-  if (Test-Path $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") -pathType Container)
+  if (Test-Path $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT"))
   {
     Write-Host "Moving snapshot number $SNAPSHOT_COUNT to $($SNAPSHOT_COUNT + 1) ..."
     Write-Output "CWRSyncSnapshot: Moving snapshot number $SNAPSHOT_COUNT to $($SNAPSHOT_COUNT + 1)." >> $LOG_FILE
-    Move-Item $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") $(Join-Path $TARGET "\Snapshot.$($SNAPSHOT_COUNT + 1)")
+    Move-Item $(Join-Path $TARGET "\Snapshot.$SNAPSHOT_COUNT") $(Join-Path $TARGET "\Snapshot.$($SNAPSHOT_COUNT + 1)") `
+      -force
   }
   else
   {
@@ -226,7 +227,7 @@ $SNAPSHOT = New-Item $(Join-Path $TARGET "\Snapshot.0") -itemType directory
 
 # Create the rsync command
 $RSYNC_COMMAND = "$RSYNC $RSYNC_OPTIONS "
-if (Test-Path $(Join-Path $TARGET "\Snapshot.1") -pathType Container)
+if (Test-Path $(Join-Path $TARGET "\Snapshot.1"))
 {
   $RSYNC_COMMAND += "`"--link-dest=../Snapshot.1`" "
 }
@@ -246,7 +247,7 @@ Write-Output "CWRSyncSnapshot: Backing up `"$SOURCE`" to snapshot number 0 using
 Write-Output "CWRSyncSnapshot: $RSYNC_COMMAND" >> $LOG_FILE
 Invoke-Expression ($RSYNC_COMMAND)
 
-# Update the time of the snapshot directory
+# Update the write time of the snapshot directory
 $SNAPSHOT.lastWriteTime = Get-Date
 
 # Remove lock file
