@@ -15,8 +15,8 @@
 # ------------------------------
 # RSnapshot Type Script
 # ------------------------------
-# Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File
-#          Custom_Lock_File
+# Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Log_File Lock_File
+#          Optional_Additional_CWRSync_Arguments...
 
 # ----- CWRSync Command -----
 
@@ -48,8 +48,8 @@ Write-Host ""
 # Process the source argument
 if (!($args[0]))
 {
-  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
-  Write-Host "         Custom_Lock_File"
+  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Log_File Lock_File"
+  Write-Host "  Optional_Additional_CWRSync_Arguments ..."
   Write-Host ""
   Write-Host "Source directory not specified."
   Write-Host ""
@@ -75,8 +75,8 @@ if (!(Test-Path $SOURCE -pathType Container))
 # Process the target argument
 if (!($args[1]))
 {
-  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
-  Write-Host "         Custom_Lock_File"
+  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Log_File Lock_File"
+  Write-Host "  Optional_Additional_CWRSync_Arguments ..."
   Write-Host ""
   Write-Host "Target directory not specified."
   Write-Host ""
@@ -102,8 +102,8 @@ if (!(Test-Path $TARGET -pathType Container))
 # Process the snapshot count argument
 if (!($args[2]))
 {
-  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Optional_Log_File"
-  Write-Host "         Custom_Lock_File"
+  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Log_File Lock_File"
+  Write-Host "  Optional_Additional_CWRSync_Arguments ..."
   Write-Host ""
   Write-Host "Number of snapshots to keep not specified."
   Write-Host ""
@@ -118,37 +118,45 @@ if (!($SNAPSHOT_COUNT -match "^\d+$"))
 }
 
 # Process the log file argument
-if ($args[3])
+if (!($args[3]))
 {
-  try
-  {
-    $LOG_FILE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[3])
-  }
-  catch
-  {
-    Write-Host "Specified log file (`"$args[3]`") is not valid."
-    Write-Host ""
-    Exit 1
-  }
+  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Log_File Lock_File"
+  Write-Host "  Optional_Additional_CWRSync_Arguments ..."
+  Write-Host ""
+  Write-Host "Log file not specified."
+  Write-Host ""
+  Exit 1
+}
+try
+{
+  $LOG_FILE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[3])
+}
+catch
+{
+  Write-Host "Specified log file (`"$args[3]`") is not valid."
+  Write-Host ""
+  Exit 1
 }
 
 # Process the lock file argument
 if (!$args[4])
 {
-  $LOCK_FILE = "C:\CWRSyncSnapshopLock"
+  Write-Host "Usage: CWRSyncSnapshot Source_Directory Target_Directory Number_of_Snapshots_to_Keep Log_File Lock_File"
+  Write-Host "  Optional_Additional_CWRSync_Arguments ..."
+  Write-Host ""
+  Write-Host "Lock file not specified."
+  Write-Host ""
+  Exit 1
 }
-else
+try
 {
-  try
-  {
-    $LOCK_FILE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[4])
-  }
-  catch
-  {
-    Write-Host "Specfieid lock file (`"$args[4]`") is not valid."
-    Write-Host ""
-    Exit 1
-  }
+  $LOCK_FILE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($args[4])
+}
+catch
+{
+  Write-Host "Specfieid lock file (`"$args[4]`") is not valid."
+  Write-Host ""
+  Exit 1
 }
 
 # Process the CWRSync command
@@ -251,9 +259,10 @@ if (Test-Path $(Join-Path $TARGET "\Snapshot.1"))
 {
   $CWRSYNC_COMMAND += "`"--link-dest=../Snapshot.1`" "
 }
-if ($LOG_FILE)
+$CWRSYNC_COMMAND += "`"--log-file=/cygdrive/$($LOG_FILE.Replace(':', '').Replace('\', '/'))`" "
+for ($i = 5; $i -lt $args.length; $i++)
 {
-  $CWRSYNC_COMMAND += "`"--log-file=/cygdrive/$($LOG_FILE.Replace(':', '').Replace('\', '/'))`" "
+  $CWRSYNC_COMMAND += "`"$args[$i]`" "
 }
 $CWRSYNC_COMMAND += "`"/cygdrive/$($SOURCE.Replace(':', '').Replace('\', '/'))`" "
 $CWRSYNC_COMMAND += "`"/cygdrive/$($(Join-Path $TARGET "\Snapshot.0").Replace(':', '').Replace('\', '/'))`""
